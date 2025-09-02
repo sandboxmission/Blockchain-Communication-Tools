@@ -1,0 +1,14 @@
+# Blockchain Communication Tools Requirements
+# Core dependencies for blockchain_scanner.py
+
+# GUI Framework
+customtkinter>=5.2.0
+
+# HTTP requests for RPC calls
+requests>=2.28.0
+
+# LZ-String compression/decompression
+lzstring>=1.0.4
+
+# Optional: For building executable
+# pyinstaller>=5.0.0

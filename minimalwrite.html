@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Send UTF-8 to Sepolia</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f1a;
+      color: #e0f7ff;
+      padding: 30px;
+      max-width: 600px;
+      margin: auto;
+    }
+    input, textarea, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px solid #00ffcc;
+      border-radius: 6px;
+      background: #0a0a15;
+      color: #00ffcc;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    button {
+      background: #002233;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #00334d;
+    }
+    button:disabled {
+      background: #333;
+      color: #666;
+      cursor: not-allowed;
+    }
+    .status {
+      padding: 12px;
+      margin: 15px 0;
+      border-radius: 6px;
+      display: none;
+      word-break: break-all;
+    }
+    .success { background: #002d1f; color: #00ffaa; }
+    .error { background: #440000; color: #ff3366; }
+    .info {
+      font-size: 0.9rem;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <h2>Send UTF-8 Message to Sepolia</h2>
+  <p class="info">Write any UTF-8 text. It will be stored in the transaction data.</p>
+
+  <label>To Address</label>
+  <input type="text" id="to" value="0xF244bD22f03De365bb04AdB24cD6ba7Cf922B83c" />
+
+  <label>Your Message (UTF-8)</label>
+  <textarea id="msg" rows="3" placeholder="Hello blockchain explorer">Hello blockchain explorer</textarea>
+
+  <button id="connectBtn" onclick="connectWallet()" style="display: block;">Connect MetaMask</button>
+  <button id="sendBtn" onclick="send()" style="display: none;">Send via MetaMask</button>
+
+  <div id="walletInfo" style="display: none; padding: 10px; margin: 10px 0; background: #001122; border-radius: 6px; font-size: 0.9rem;">
+    <div>Connected: <span id="accountAddress"></span></div>
+    <div>Network: <span id="networkName"></span></div>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <p class="info">
+    After sending, go to <a href="https://sepolia.etherscan.io" target="_blank" style="color:#00ffcc">sepolia.etherscan.io</a><br>
+    and search your transaction hash to verify the data.
+  </p>
+
+  <script>
+    let isConnected = false;
+    let currentAccount = null;
+
+    async function connectWallet() {
+      const connectBtn = document.getElementById('connectBtn');
+      const sendBtn = document.getElementById('sendBtn');
+      const walletInfo = document.getElementById('walletInfo');
+      
+      try {
+        // Check MetaMask
+        if (!window.ethereum) {
+          throw new Error('MetaMask not detected. Please install it.');
+        }
+
+        connectBtn.disabled = true;
+        connectBtn.textContent = 'Connecting...';
+
+        // Request account access
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        
+        if (accounts.length === 0) {
+          throw new Error('No accounts found. Please unlock MetaMask.');
+        }
+
+        currentAccount = accounts[0];
+        
+        // Get network info
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        const networkName = getNetworkName(chainId);
+
+        // Update UI
+        document.getElementById('accountAddress').textContent = `${currentAccount.slice(0, 6)}...${currentAccount.slice(-4)}`;
+        document.getElementById('networkName').textContent = networkName;
+        
+        connectBtn.style.display = 'none';
+        sendBtn.style.display = 'block';
+        walletInfo.style.display = 'block';
+        
+        isConnected = true;
+
+        if (chainId !== '0xaa36a7') {
+          showError('Please switch to Sepolia testnet for this demo.');
+        } else {
+          showSuccess('Connected to MetaMask and Sepolia testnet!');
+        }
+
+      } catch (err) {
+        console.error('Connection failed:', err);
+        showError(`Connection failed: ${err.message}`);
+        connectBtn.disabled = false;
+        connectBtn.textContent = 'Connect MetaMask';
+      }
+    }
+
+    function getNetworkName(chainId) {
+      const networks = {
+        '0x1': 'Ethereum Mainnet',
+        '0xaa36a7': 'Sepolia Testnet', 
+        '0x5': 'Goerli Testnet',
+        '0x89': 'Polygon',
+        '0xa': 'Optimism'
+      };
+      return networks[chainId] || `Unknown (${chainId})`;
+    }
+
+    async function send() {
+      if (!isConnected || !currentAccount) {
+        showError('Please connect your wallet first.');
+        return;
+      }
+
+      const to = document.getElementById('to').value.trim();
+      const msg = document.getElementById('msg').value;
+      const status = document.getElementById('status');
+      const sendBtn = document.getElementById('sendBtn');
+
+      // Reset status
+      status.style.display = 'none';
+      sendBtn.disabled = true;
+      sendBtn.textContent = 'Sending...';
+
+      try {
+        // Validate address
+        if (!to || !/^0x[a-fA-F0-9]{40}$/.test(to)) {
+          throw new Error('Invalid Ethereum address. Must be 42 hex chars.');
+        }
+
+        // Validate message
+        if (!msg) {
+          throw new Error('Message is empty.');
+        }
+
+        // Check if we're still on Sepolia
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== '0xaa36a7') {
+          throw new Error('Please switch to Sepolia testnet in MetaMask (Chain ID: 11155111).');
+        }
+
+        // UTF-8 to Hex conversion
+        const encoder = new TextEncoder(); // Native UTF-8
+        const bytes = encoder.encode(msg);
+        let hex = '0x';
+        for (let byte of bytes) {
+          hex += byte.toString(16).padStart(2, '0');
+        }
+
+        // Estimate gas for the transaction
+        const gasEstimate = await window.ethereum.request({
+          method: 'eth_estimateGas',
+          params: [{
+            from: currentAccount,
+            to: to,
+            value: '0x0',
+            data: hex
+          }]
+        });
+
+        // Get current gas price
+        const gasPrice = await window.ethereum.request({
+          method: 'eth_gasPrice'
+        });
+
+        // Prepare transaction with estimated gas
+        const tx = {
+          from: currentAccount,
+          to: to,
+          value: '0x0',
+          data: hex,
+          gas: gasEstimate,
+          gasPrice: gasPrice
+        };
+
+        // Send transaction
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [tx]
+        });
+
+        showSuccess(`Sent! Transaction Hash: ${txHash}`);
+        
+      } catch (err) {
+        console.error('Send failed:', err);
+        
+        // Handle specific MetaMask errors
+        let errorMsg = err.message || err;
+        if (err.code === 4001) {
+          errorMsg = 'Transaction rejected by user.';
+        } else if (err.code === -32602) {
+          errorMsg = 'Invalid transaction parameters.';
+        } else if (err.code === -32603) {
+          errorMsg = 'Internal error. Check your network connection.';
+        }
+        
+        showError(`Failed: ${errorMsg}`);
+      } finally {
+        // Re-enable button
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send via MetaMask';
+      }
+    }
+
+    function showSuccess(msg) {
+      const el = document.getElementById('status');
+      el.className = 'status success';
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('status');
+      el.className = 'status error';
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    // Listen for account/network changes
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts) => {
+        if (accounts.length === 0) {
+          // User disconnected
+          isConnected = false;
+          currentAccount = null;
+          document.getElementById('connectBtn').style.display = 'block';
+          document.getElementById('sendBtn').style.display = 'none';
+          document.getElementById('walletInfo').style.display = 'none';
+          showError('Wallet disconnected. Please reconnect.');
+        } else if (accounts[0] !== currentAccount) {
+          // User switched account
+          currentAccount = accounts[0];
+          document.getElementById('accountAddress').textContent = `${currentAccount.slice(0, 6)}...${currentAccount.slice(-4)}`;
+          showSuccess(`Account changed to ${currentAccount.slice(0, 6)}...${currentAccount.slice(-4)}`);
+        }
+      });
+
+      window.ethereum.on('chainChanged', (chainId) => {
+        const networkName = getNetworkName(chainId);
+        document.getElementById('networkName').textContent = networkName;
+        
+        if (chainId === '0xaa36a7') {
+          showSuccess('Switched to Sepolia testnet!');
+        } else {
+          showError('Please switch to Sepolia testnet for this demo.');
+        }
+      });
+    }
+
+    // Check if MetaMask is available and already connected when page loads
+    window.addEventListener('load', async () => {
+      if (!window.ethereum) {
+        showError('MetaMask not detected. Please install MetaMask extension.');
+        return;
+      }
+
+      // Check if already connected
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length > 0) {
+          // Auto-connect if previously connected
+          connectWallet();
+        }
+      } catch (err) {
+        console.log('Not previously connected');
+      }
+    });
+  </script>
+</body>
+</html>
