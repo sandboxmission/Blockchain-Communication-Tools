@@ -57,18 +57,39 @@ The system treats the blockchain as a "carrier wave" for communication - similar
 pip install customtkinter requests lzstring
 ```
 
-### Setup
-1. Clone this repository
-2. Install Python dependencies
-3. Run the scanner: `python blockchain_scanner.py`
-4. For the writer:
-   - **Live Server Required**: Due to CORS restrictions, `minimalwrite.html` must be served via HTTP server
-   - **Python**: `python -m http.server 8000` then open `http://localhost:8000/minimalwrite.html`
-   - **VS Code**: Use "Live Server" extension
-   - **Node.js**: `npx serve .` or `npx http-server`
+### Setup Options
 
-### Pre-compiled Versions
-- **Windows Executable**: A compiled .exe version of the scanner is available in releases for users who prefer not to install Python
+#### Option 1: From Source
+1. Clone this repository
+2. Install Python dependencies: `pip install customtkinter requests lzstring`
+3. Run the scanner: `python blockchain_scanner.py`
+
+#### Option 2: Pre-compiled Windows Executable  
+Download the compiled `.exe` from the releases section - no Python installation required.
+
+#### Web Writer Setup
+The `minimalwrite.html` requires a live server due to CORS restrictions:
+
+**Python Built-in Server:**
+```bash
+python -m http.server 8000
+# Then open: http://localhost:8000/minimalwrite.html
+```
+
+**VS Code Live Server:**
+- Install "Live Server" extension
+- Right-click `minimalwrite.html` → "Open with Live Server"
+
+**Node.js Options:**
+```bash
+npx serve .
+# or
+npx http-server
+```
+
+**Other Options:**
+- Any local web server (Apache, Nginx, etc.)
+- Online code editors with live preview (CodePen, JSFiddle)
 
 ## 📖 Usage
 
@@ -104,7 +125,7 @@ During testing on Sepolia testnet, we found various experimental messages:
 - File storage attempts
 
 ### Potential Applications
-- **Decentralized Messaging**: Censorship-resistant communication
+- **Decentralized Messaging**: Alternative communication methods
 - **Proof of Existence**: Timestamp documents on blockchain
 - **Dead Drop Systems**: Asynchronous message exchange
 - **Blockchain Guestbooks**: Permanent visitor logs
